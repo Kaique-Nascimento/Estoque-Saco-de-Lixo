@@ -2,6 +2,7 @@ import sqlite3 as bd
 from conexao import conectarBanco
 from pathlib import Path
 from tkinter import Tk, Canvas, Entry, Text, Button, PhotoImage
+from tkinter import *
 
 
 OUTPUT_PATH = Path(__file__).parent
@@ -12,24 +13,27 @@ def relative_to_assets(path: str) -> Path:
     return ASSETS_PATH / path
 print(ASSETS_PATH)
 
-#ver o pq ele nao ta pegando a imagem
-
-
-
 window = Tk()
 
-window.geometry("886x580")
-window.configure(bg = "#FFFFFF")
+# Obter as dimensões da tela
+screen_width = window.winfo_screenwidth()  # Largura da tela
+screen_height = window.winfo_screenheight()  # Altura da tela
+
+# Ajustando a geometria da janela para ocupar toda a tela
+window.geometry(f"{screen_width}x{screen_height}+0+0")  # Tamanho igual à tela
+
+# Configurando o canvas para preencher toda a janela
 canvas = Canvas(
     window,
-    bg = "#FFFFFF",
-    height = 580,
-    width = 886,
-    bd = 0,
-    highlightthickness = 0,
-    relief = "ridge"
+    bg="#FFFFFF",
+    height=screen_height,  # Altura igual à altura da tela
+    width=screen_width,     # Largura igual à largura da tela
+    bd=0,
+    highlightthickness=0,
+    relief="ridge"
 )
-#ver o pq ele nao ta pegando as imagens
+canvas.pack(fill="both", expand=True)  # Isso faz o canvas se expandir para ocupar todo o espaço disponível
+
 icone_apagar = relative_to_assets("apagar.png")
 icone_editar = relative_to_assets("editar.png")
 
@@ -117,6 +121,129 @@ def inserirDadosExemplo():
     cadastrarSaco('100 Litros (REFORÇADO)', 100.00, 5)
     cadastrarSaco('200 Litros', 75.00, 5)
 
+def quebrar_nome(nome, largura_maxima=280):
+    # Função para quebrar o nome em várias linhas, baseado na largura máxima da janela
+    palavras = nome.split()  # Dividir o nome em palavras
+    linhas = []  # Armazenar as linhas de texto
+    linha_atual = ""  # Começar com uma linha vazia
+
+    for palavra in palavras:
+        # Se adicionar a palavra ultrapassar a largura máxima, cria uma nova linha
+        if len(linha_atual + " " + palavra) > largura_maxima:
+            linhas.append(linha_atual.strip())  # Adiciona a linha atual à lista de linhas
+            linha_atual = palavra  # Começa uma nova linha com a palavra atual
+        else:
+            linha_atual += " " + palavra  # Adiciona a palavra à linha atual
+
+    if linha_atual:
+        linhas.append(linha_atual.strip())  # Adiciona a última linha
+
+    return linhas
+def nomeClienteBanco(id):  
+    try:
+        conn = bd.connect('tb_saco.db')
+        cursor = conn.cursor()
+        query = "SELECT tb01_nome FROM tb01_cliente WHERE tb01_id = ?"
+        cursor.execute(query, (id,))
+        nome_cliente = cursor.fetchone()
+        
+        if nome_cliente:
+            return nome_cliente[0] 
+        else:
+            return None  
+        
+    except Exception as e:
+        print("DEU ERRO: " + str(e))
+        return None  
+    finally:
+        conn.close()
+
+def editarCliente(id):
+    print("Editando cliente com ID:", id)
+    
+def apagarCliente(id):
+    window3 = Toplevel() 
+    window3.geometry("300x150")  
+    window3.configure(bg="#FFFFFF") 
+
+    # Centralizando a janela
+    screen_width = window3.winfo_screenwidth()  
+    screen_height = window3.winfo_screenheight()  
+
+    window_width = 300 
+    window_height = 180  
+
+    position_top = int(screen_height / 2 - window_height / 2)
+    position_left = int(screen_width / 2 - window_width / 2)
+
+    window3.geometry(f"{window_width}x{window_height}+{position_left}+{position_top}")
+    canvas2 = Canvas(window3, bg="#FFFFFF", height=150, width=300, bd=0, highlightthickness=0)
+    canvas2.pack() 
+
+    try:
+        conn = bd.connect('tb_saco.db') 
+        cursor = conn.cursor()  
+        
+        cursor.execute("DELETE FROM tb01_cliente WHERE tb01_id = ?", (id,))
+        conn.commit()
+        
+        canvas2.create_text(150, 80, text="Cliente apagado com sucesso", font=("Arial", 14), fill="#000")
+        button_ok = Button(window3, text="Ok", command=lambda: window3.destroy(), width=8, height=2)
+        button_ok.place(x=110, y=135)  
+        carregaClientes()
+
+    except Exception as e:
+        print("Deu erro: " + str(e))
+
+    finally:
+        if conn:
+            conn.close()
+
+
+def telaApagarCliente(id):
+    print("Apagar cliente com ID:", id)
+    # Criando a janela de confirmação
+    window2 = Toplevel() 
+    window2.geometry("300x150")  
+    window2.configure(bg="#FFFFFF") 
+
+# Centralizando a janela
+    screen_width = window2.winfo_screenwidth()  # Largura da tela
+    screen_height = window2.winfo_screenheight()  # Altura da tela
+
+    window_width = 300  # Largura da janela
+    window_height = 180  # Altura da janela
+
+    # Calculando a posição para centralizar
+    position_top = int(screen_height / 2 - window_height / 2)
+    position_left = int(screen_width / 2 - window_width / 2)
+
+    # Definindo a posição da janela
+    window2.geometry(f"{window_width}x{window_height}+{position_left}+{position_top}")
+    canvas2 = Canvas(window2, bg="#FFFFFF", height=150, width=300, bd=0, highlightthickness=0)
+    canvas2.pack() 
+    nome_cliente = nomeClienteBanco(id)
+    canvas2.create_text(150, 50, text=f"Deseja apagar?", font=("Arial", 16), fill="#000")
+    linhas_nome = quebrar_nome(nome_cliente)
+    y_pos = 80  
+    for linha in linhas_nome:
+        canvas2.create_text(150, y_pos, text=linha, font=("Arial", 14), fill="#000")
+        y_pos += 20  
+
+    def confirmar():
+        window2.destroy()
+        apagarCliente(id)
+    def cancelar():
+        window2.destroy()
+    
+    button_confirmar = Button(window2, text="Sim", command=confirmar, width=8, height=2)
+    button_confirmar.place(x=75, y=135)  
+
+    button_cancelar = Button(window2, text="Não", command=cancelar, width=8, height=2)
+    button_cancelar.place(x=180, y=135)  
+
+    window2.mainloop()
+
 def carregaClientes():
     try:
         conn = bd.connect('tb_saco.db')
@@ -128,64 +255,66 @@ def carregaClientes():
         cursor.execute(carregaClientes)
         clientes = cursor.fetchall()
 
-        # Verificando se há clientes cadastrados
         if not clientes:
             print("Não há dados cadastrados!")
             input("Pressione qualquer tecla para continuar...")
             return False
         else:
-            # Exibe os dados de cada cliente
+            # Inicializando as variáveis de posição
             valorY = 171
             valorY2 = 200
             valorTextoY = 177.5
             valorIconeY = 185
-            informacoes = ""
-            contador = 0  # Contador para controlar quantos clientes foram processados
+            contador = 0
+
+            # Número de colunas (3 colunas)
+            colunas = 3
+
             for cliente in clientes:
-                # Esquerdo
-                retangulo(83, valorY, 353, valorY2, "#D9D9D9")
-                texto(87, valorTextoY, cliente[1], "#000", 16)
-                button_editar = Button(window, image=editar_image, cursor="hand2")
-                canvas.create_window(300, valorIconeY, window=button_editar)
-                button_apagar = Button(window, image=apagar_image, cursor="hand2")
-                canvas.create_window(340, valorIconeY, window=button_apagar)
-                
-                # Atualizando as coordenadas para o próximo cliente
+                # Calculando a coluna onde o cliente vai ficar (0, 1, 2)
+                coluna = contador % colunas  # Modulo para distribuir os clientes em 3 colunas
+
+                # Lógica para determinar a posição X de acordo com a coluna
+                if coluna == 0:
+                    posX = 83  # Primeira coluna (esquerda)
+                elif coluna == 1:
+                    posX = 513  # Segunda coluna (centro)
+                else:
+                    posX = 903  # Terceira coluna (direita)
+
+                # Exibindo o cliente
+                retangulo(posX, valorY, posX + 270, valorY2, "#D9D9D9")  # A largura foi ajustada para todas as colunas
+                texto(posX + 4, valorTextoY, cliente[1], "#000", 16)
+
+                # Botão de editar
+                button_editar = Button(window, image=editar_image, cursor="hand2", 
+                                       command=lambda c=cliente[0]: telaEditarCliente(c))
+                canvas.create_window(posX + 217, valorIconeY, window=button_editar)  # Botão à direita do texto
+
+                # Botão de apagar
+                button_apagar = Button(window, image=apagar_image, cursor="hand2", 
+                                       command=lambda c=cliente[0]: telaApagarCliente(c))
+                canvas.create_window(posX + 257, valorIconeY, window=button_apagar)  # Botão à direita do botão editar
+
+                # Atualizando a posição para o próximo cliente
                 valorY += 68
                 valorY2 += 68
                 valorTextoY += 68
                 valorIconeY += 68
-                contador += 1
 
-                # Verificando se já exibimos 5 clientes (esquerdo)
-                if contador == 5:
-                    # Resetando os valores para o lado direito e reiniciando o contador
-                    contador = 0
+                # Quando 5 clientes foram exibidos, resetamos o valorY para a próxima linha
+                if (contador + 1) % 5 == 0:
                     valorY = 171
                     valorY2 = 200
                     valorTextoY = 177.5
                     valorIconeY = 185
 
-                    # Direito (começa a exibir clientes no lado direito)
-                    retangulo(513, valorY, 783, valorY2, "#D9D9D9")
-                    texto(517, valorTextoY, cliente[1], "#000", 16)
-                    button_editar = Button(window, image=editar_image, cursor="hand2")
-                    canvas.create_window(730, valorIconeY, window=button_editar)
-                    button_apagar = Button(window, image=apagar_image, cursor="hand2")
-                    canvas.create_window(770, valorIconeY, window=button_apagar)
-                    
-                    # Atualizando as coordenadas para o próximo cliente no lado direito
-                    valorY += 68
-                    valorY2 += 68
-                    valorTextoY += 68
-                    valorIconeY += 68
-                    contador += 1
+                contador += 1
 
-                # Quando o contador atingir 10, paramos de adicionar mais informações
-                if contador == 10:
-                    break  # Interrompe o loop após o cliente 10
+                # Limite de 15 clientes
+                if contador >= 15:
+                    break  # Interrompe o loop após 15 clientes
 
-                
             return True
     except Exception as e:
         print("DEU ERRO: " + str(e))
@@ -193,7 +322,6 @@ def carregaClientes():
     finally:
         conn.close()
 def criar_botao(x1, y1, x2, y2, texto, comando):
-    # Cria um botão no canvas
     button = Button(window, text=texto, command=comando, width=10, height=2, bg="#D9D9D9", font=("ArialRoundedMTBold", 16))
     canvas.create_window((x1 + x2) / 2, (y1 + y2) / 2, window=button)
 def comando_voltar():
@@ -206,19 +334,23 @@ def comando_avancar():
     print("Avançar clicado!")
 def tela():
     canvas.place(x = 0, y = 0)
-    texto(30, 42,"Corno gay", "#000", 32)
-    texto(44, 125, "porra do caralho", "#819830", 16)
+    texto(30, 42,"Sistema de estoque saco de lixo", "#000", 32)
+    screen_width = window.winfo_screenwidth()  
+    screen_height = window.winfo_screenheight()  
 
-    # Botão "Voltar"
-    criar_botao(150.0, 435.0 + 70, 267.0, 489.0 + 70, "Anterior", comando_voltar)
+    botao_height = 70
+    y_botoes = screen_height - botao_height - 80  
 
-    # Botão "Cadastrar"
-    criar_botao(150.0 + 250, 435.0 + 70, 267.0 + 250, 489.0 + 70, "Cadastrar", comando_cadastrar)
+    largura_espaco = 40  
+    criar_botao(largura_espaco, y_botoes, largura_espaco + 117, y_botoes + botao_height, "Anterior", comando_voltar)
 
-    # Botão "Avançar
-    criar_botao(150.0 + 250 + 250, 435.0 + 70, 267.0 + 250 + 250, 489.0 + 70, "Avançar", comando_avancar)
+    # Botão "Cadastrar" - centralizado
+    largura_centralizada = (screen_width - 117) / 2  # 117 é a largura do botão
+    criar_botao(largura_centralizada, y_botoes, largura_centralizada + 117, y_botoes + botao_height, "Cadastrar", comando_cadastrar)
 
-
+    # Botão "Avançar" - ajustado para ficar um pouco afastado da borda direita
+    largura_direita = screen_width - 157  # 157 é a largura do botão + margem
+    criar_botao(largura_direita, y_botoes, largura_direita + 117, y_botoes + botao_height, "Avançar", comando_avancar)
 
 
 
