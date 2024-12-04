@@ -12,7 +12,8 @@ ASSETS_PATH = OUTPUT_PATH / "img"
 def relative_to_assets(path: str) -> Path:
     return ASSETS_PATH / path
 print(ASSETS_PATH)
-
+contador_inicial = 1
+contador_final = 15
 window = Tk()
 
 # Obter as dimensões da tela
@@ -243,7 +244,6 @@ def telaApagarCliente(id):
     button_cancelar.place(x=180, y=135)  
 
     window2.mainloop()
-
 def carregaClientes():
     try:
         conn = bd.connect('tb_saco.db')
@@ -251,8 +251,22 @@ def carregaClientes():
 
         # Verificando se há clientes no banco de dados
         print("Carregando clientes...")
-        carregaClientes = "SELECT * FROM tb01_cliente"
-        cursor.execute(carregaClientes)
+
+        # Carregar a quantidade mínima e máxima de ids
+        carregaContadoresSQL = "SELECT MIN(tb01_id), MAX(tb01_id) FROM tb01_cliente;"
+        cursor.execute(carregaContadoresSQL)
+        contadores = cursor.fetchall()
+        
+        # Exibindo valores de MIN e MAX do ID
+        for contadore in contadores:
+            print(f"Min tb01_id: {contadore[0]}, Max tb01_id: {contadore[1]}")
+        
+        # Consulta SQL para carregar os clientes no intervalo de IDs
+        carregaClientesSQL = "SELECT * FROM tb01_cliente ORDER BY tb01_nome ASC"
+        print(f"Consultando IDs entre {contador_inicial} e {contador_final}...")
+
+        # Executando a consulta com os parâmetros contador_inicial e contador_final
+        cursor.execute(carregaClientesSQL)
         clientes = cursor.fetchall()
 
         if not clientes:
@@ -260,7 +274,7 @@ def carregaClientes():
             input("Pressione qualquer tecla para continuar...")
             return False
         else:
-            # Inicializando as variáveis de posição
+            # Inicializando as variáveis de posição para desenhar os clientes
             valorY = 171
             valorY2 = 200
             valorTextoY = 177.5
@@ -284,17 +298,7 @@ def carregaClientes():
 
                 # Exibindo o cliente
                 retangulo(posX, valorY, posX + 270, valorY2, "#D9D9D9")  # A largura foi ajustada para todas as colunas
-                texto(posX + 4, valorTextoY, cliente[1], "#000", 16)
-
-                # Botão de editar
-                button_editar = Button(window, image=editar_image, cursor="hand2", 
-                                       command=lambda c=cliente[0]: telaEditarCliente(c))
-                canvas.create_window(posX + 217, valorIconeY, window=button_editar)  # Botão à direita do texto
-
-                # Botão de apagar
-                button_apagar = Button(window, image=apagar_image, cursor="hand2", 
-                                       command=lambda c=cliente[0]: telaApagarCliente(c))
-                canvas.create_window(posX + 257, valorIconeY, window=button_apagar)  # Botão à direita do botão editar
+                texto(posX + 4, valorTextoY, cliente[1], "#000", 16)  # Ajuste conforme o índice da coluna para o nome do cliente
 
                 # Atualizando a posição para o próximo cliente
                 valorY += 68
@@ -321,17 +325,32 @@ def carregaClientes():
         return False
     finally:
         conn.close()
+
 def criar_botao(x1, y1, x2, y2, texto, comando):
     button = Button(window, text=texto, command=comando, width=10, height=2, bg="#D9D9D9", font=("ArialRoundedMTBold", 16))
     canvas.create_window((x1 + x2) / 2, (y1 + y2) / 2, window=button)
+
 def comando_voltar():
+    global contador_inicial, contador_final
     print("Voltar clicado!")
+    contador_inicial -= 15
+    contador_final = contador_inicial + 14  # Ajustado para que o intervalo seja correto
+    if contador_final <= 0:
+        contador_final = 1  # Garantir que o contador_final não seja negativo
+    print(contador_inicial, contador_final)
+    carregaClientes()
 
 def comando_cadastrar():
+    
     print("Cadastrar clicado!")
-
 def comando_avancar():
+    global contador_inicial, contador_final
     print("Avançar clicado!")
+    contador_inicial += 15
+    contador_final = contador_inicial + 14  # Ajustado para que o intervalo seja correto
+    print(contador_inicial, contador_final)
+    carregaClientes()
+
 def tela():
     canvas.place(x = 0, y = 0)
     texto(30, 42,"Sistema de estoque saco de lixo", "#000", 32)
@@ -351,32 +370,12 @@ def tela():
     # Botão "Avançar" - ajustado para ficar um pouco afastado da borda direita
     largura_direita = screen_width - 157  # 157 é a largura do botão + margem
     criar_botao(largura_direita, y_botoes, largura_direita + 117, y_botoes + botao_height, "Avançar", comando_avancar)
-
-
-
-
-
-
-
-  
-
-
-
-  
-
-
-
-
-
-
-
-
-
-
+    
 
     window.resizable(False, False)
+    carregaClientes()
+
     window.mainloop()
 
 
-carregaClientes()
 tela()
